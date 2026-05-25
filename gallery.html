@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CloudVault Gallery — Browse all your Cloudinary media files. Optimized for Samsung TV remote navigation." />
+  <title>CloudVault Gallery</title>
+  <style>
+    /* ─── TOKENS ───────────────────────────────── */
+    :root {
+      --bg: #08080f;
+      --surface: rgba(255,255,255,0.05);
+      --surface2: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.1);
+      --primary: #6366f1;
+      --secondary: #8b5cf6;
+      --accent: #ec4899;
+      --grad: linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899);
+      --text: #f1f5f9;
+      --text2: #94a3b8;
+      --muted: #475569;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --success: #10b981;
+      --danger: #ef4444;
+      /* TV-safe area */
+      --tv-safe: 5vw;
+    }
+
+    /* ─── RESET ────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { font-size: 18px; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: -10%;
+      width: 60vw;
+      height: 60vw;
+      background: radial-gradient(circle,rgba(99,102,241,0.12) 0%,transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      animation: orb 12s ease-in-out infinite alternate;
+    }
+    @keyframes orb { from { transform: translateY(0); } to { transform: translateY(40px); } }
+
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+    input  { font-family: inherit; }
+    img, video { max-width: 100%; display: block; }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 99px; }
+
+    /* ─── FOCUS STYLES (TV remote navigation) ── */
+    :focus-visible {
+      outline: 4px solid var(--primary);
+      outline-offset: 3px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* ─── PASSWORD GATE ─────────────────────── */
+    #gate {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      z-index: 1000;
+      padding: var(--tv-safe);
+    }
+
+    .gate-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      padding: 52px 44px;
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 80px rgba(99,102,241,0.1);
+    }
+
+    .gate-logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      background: linear-gradient(135deg,rgba(99,102,241,0.2),rgba(236,72,153,0.15));
+      border: 1px solid rgba(99,102,241,0.3);
+      border-radius: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+    }
+
+    .gate-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    .gate-sub {
+      color: var(--text2);
+      margin-bottom: 36px;
+      font-size: 1rem;
+    }
+
+    .gate-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .gate-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .gate-input {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 16px 52px 16px 52px;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .gate-input:focus {
+      border-color: rgba(99,102,241,0.6);
+      background: rgba(255,255,255,0.07);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    }
+    .gate-input::placeholder { color: var(--muted); }
+
+    .gate-lock-icon {
+      position: absolute;
+      left: 16px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .gate-eye-btn {
+      position: absolute;
+      right: 14px;
+      color: var(--muted);
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+      transition: color 0.2s;
+    }
+    .gate-eye-btn:hover, .gate-eye-btn:focus-visible { color: var(--text); outline-offset: 4px; }
+
+    .gate-submit {
+      background: var(--grad);
+      color: #fff;
+      border: none;
+      padding: 16px;
+      border-radius: 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(99,102,241,0.35);
+      transition: all 0.2s;
+    }
+    .gate-submit:hover, .gate-submit:focus-visible {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(99,102,241,0.5);
+    }
+
+    .gate-error {
+      color: var(--danger);
+      font-size: 0.85rem;
+      padding: 10px 14px;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 10px;
+      display: none;
+    }
+    .gate-error.show { display: block; }
+
+    .gate-hint { color: var(--muted); font-size: 0.78rem; margin-top: 20px; }
+
+    /* ─── MAIN APP ──────────────────────────── */
+    #app {
+      display: none;
+      flex-direction: column;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+    #app.visible { display: flex; }
+
+    /* Navbar */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 80px;
+      background: rgba(8,8,15,0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--tv-safe);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 46px;
+      height: 46px;
+      background: linear-gradient(135deg,rgba(99,102,241,0.2),rgba(236,72,153,0.15));
+      border: 1px solid rgba(99,102,241,0.25);
+      border-radius: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+    }
+
+    .brand-name {
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-name span {
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stats-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 8px 18px;
+      font-size: 0.85rem;
+      color: var(--text2);
+    }
+    .stats-pill b { color: var(--text); }
+
+    .logout-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 18px;
+      color: var(--text2);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .logout-btn:hover, .logout-btn:focus-visible { background: var(--surface2); color: var(--text); }
+
+    /* Toolbar */
+    .toolbar {
+      padding: calc(80px + 32px) var(--tv-safe) 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+
+    .filter-btn {
+      padding: 10px 22px;
+      border-radius: 99px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter-btn:hover, .filter-btn:focus-visible { color: var(--text); background: var(--surface2); }
+    .filter-btn.active {
+      background: var(--grad);
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+    }
+
+    .search-wrap {
+      position: relative;
+      width: 280px;
+    }
+    .search-icon {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 11px 14px 11px 40px;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .search-input:focus {
+      border-color: rgba(99,102,241,0.5);
+      background: var(--surface2);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    }
+    .search-input::placeholder { color: var(--muted); }
+
+    /* Grid */
+    .grid-container {
+      padding: 0 var(--tv-safe) var(--tv-safe);
+    }
+
+    .grid-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.25s;
+      cursor: pointer;
+      position: relative;
+    }
+    .card:hover, .card:focus-visible {
+      border-color: rgba(99,102,241,0.4);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.2);
+      outline: none;
+    }
+    /* TV focus ring - extra prominent */
+    .card:focus {
+      outline: 4px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    .card-thumb {
+      aspect-ratio: 16/10;
+      overflow: hidden;
+      background: var(--surface2);
+      position: relative;
+    }
+
+    .card-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.35s;
+    }
+    .card:hover .card-img, .card:focus .card-img { transform: scale(1.05); }
+
+    .card-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 3rem;
+    }
+    .ph-video { background: linear-gradient(135deg,rgba(236,72,153,0.1),rgba(236,72,153,0.04)); }
+    .ph-audio { background: linear-gradient(135deg,rgba(16,185,129,0.1),rgba(16,185,129,0.04)); }
+    .ph-raw   { background: linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.04)); }
+
+    .card-format {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      opacity: 0.5;
+    }
+
+    .card-type-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .badge-image { background: rgba(99,102,241,0.2); color: #818cf8; border: 1px solid rgba(99,102,241,0.25); }
+    .badge-video { background: rgba(236,72,153,0.2); color: #f472b6; border: 1px solid rgba(236,72,153,0.25); }
+    .badge-audio { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
+    .badge-raw   { background: rgba(245,158,11,0.2); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+
+    /* Play overlay for video */
+    .play-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.3);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .card:hover .play-overlay,
+    .card:focus .play-overlay { opacity: 1; }
+
+    .play-btn {
+      width: 60px;
+      height: 60px;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      backdrop-filter: blur(4px);
+    }
+
+    .card-body {
+      padding: 14px 16px 16px;
+      flex: 1;
+    }
+
+    .card-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    .card-meta {
+      display: flex;
+      gap: 10px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .card-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .card-tag {
+      font-size: 0.68rem;
+      background: rgba(99,102,241,0.1);
+      color: var(--primary);
+      padding: 2px 8px;
+      border-radius: 99px;
+      border: 1px solid rgba(99,102,241,0.2);
+    }
+
+    /* ─── LIGHTBOX ──────────────────────────── */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      z-index: 500;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #lightbox.open { display: flex; }
+
+    .lb-close {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      width: 52px;
+      height: 52px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: all 0.2s;
+      z-index: 10;
+    }
+    .lb-close:hover, .lb-close:focus-visible { background: rgba(255,255,255,0.2); transform: scale(1.1); }
+
+    .lb-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 56px;
+      height: 56px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      cursor: pointer;
+      font-size: 1.4rem;
+      transition: all 0.2s;
+      z-index: 10;
+    }
+    .lb-nav:hover, .lb-nav:focus-visible { background: rgba(255,255,255,0.2); }
+    #lb-prev { left: 24px; }
+    #lb-next { right: 24px; }
+
+    .lb-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      padding: 80px 100px;
+    }
+
+    #lb-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.8);
+    }
+
+    #lb-video {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 12px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.8);
+      background: #000;
+    }
+
+    #lb-audio-player {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      padding: 40px;
+    }
+    .lb-audio-icon { font-size: 5rem; }
+    .lb-audio-name { font-size: 1.3rem; font-weight: 600; text-align: center; }
+    #lb-audio { width: 400px; max-width: 80vw; }
+
+    #lb-doc {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 40px;
+    }
+    .lb-doc-icon { font-size: 5rem; }
+    .lb-doc-name { font-size: 1.2rem; font-weight: 600; text-align: center; max-width: 500px; word-break: break-all; }
+
+    .lb-open-btn {
+      background: var(--grad);
+      color: #fff;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(99,102,241,0.35);
+      transition: all 0.2s;
+    }
+    .lb-open-btn:hover, .lb-open-btn:focus-visible { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(99,102,241,0.5); }
+
+    .lb-info {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      white-space: nowrap;
+    }
+    .lb-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .lb-counter {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    /* ─── LOADING / EMPTY ───────────────────── */
+    .loading-state {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      padding: 0 var(--tv-safe);
+    }
+
+    .skeleton {
+      height: 260px;
+      border-radius: var(--radius);
+      background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      from { background-position: 200% 0; }
+      to   { background-position: -200% 0; }
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 100px 24px;
+      text-align: center;
+      gap: 10px;
+    }
+    .empty-icon { font-size: 4rem; margin-bottom: 8px; }
+    .empty-title { font-size: 1.4rem; font-weight: 700; }
+    .empty-sub { color: var(--text2); font-size: 0.95rem; }
+
+    .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 80px 24px;
+      text-align: center;
+      color: var(--text2);
+    }
+
+    /* ─── TV REMOTE HINT ──────────────────── */
+    .tv-hint {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+      margin: 0 var(--tv-safe) 20px;
+    }
+
+    /* Copy URL toast */
+    #copy-toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(16,185,129,0.15);
+      border: 1px solid rgba(16,185,129,0.3);
+      color: #34d399;
+      padding: 14px 24px;
+      border-radius: 99px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      z-index: 600;
+      transition: transform 0.3s ease;
+      white-space: nowrap;
+      backdrop-filter: blur(16px);
+    }
+    #copy-toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ─── RESPONSIVE ────────────────────────── */
+    @media (max-width: 1024px) {
+      .grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+      .loading-state { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      :root { --tv-safe: 16px; }
+      html { font-size: 14px; }
+      .navbar { height: 60px; }
+      .toolbar { padding-top: calc(60px + 20px); }
+      .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+      .loading-state { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+      .lb-content { padding: 60px 60px; }
+      #lb-prev { left: 10px; }
+      #lb-next { right: 10px; }
+      .search-wrap { width: 100%; }
+      #lb-audio { width: 100%; }
+    }
+
+    /* Samsung TV: large screen, cursor-less */
+    @media (min-width: 1920px) {
+      html { font-size: 22px; }
+      :root { --tv-safe: 6vw; }
+      .grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
+      .loading-state { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
+      .navbar { height: 96px; }
+      .toolbar { padding-top: calc(96px + 36px); }
+      .filter-btn { padding: 12px 28px; font-size: 1rem; }
+      .card:focus { outline-width: 6px; }
+      .tv-hint { display: block; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── CONFIG (edit these values) ──────────────────────────── -->
+<script>
+  // ⚠️  Fill in your Cloudinary values here.
+  // This file is standalone and does NOT use .env variables.
+  const CONFIG = {
+    cloudName:    'YOUR_CLOUD_NAME',     // e.g. 'mycloud123'
+    apiKey:       'YOUR_API_KEY',         // e.g. '123456789012345'
+    apiSecret:    'YOUR_API_SECRET',      // e.g. 'abc123xyz...'
+    adminPassword: 'YOUR_ADMIN_PASSWORD', // Same password as in .env
+  };
+</script>
+<!-- ─────────────────────────────────────────────────────────── -->
+
+<!-- PASSWORD GATE -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="gate-logo">🔐</div>
+    <h1 class="gate-title">CloudVault</h1>
+    <p class="gate-sub">Enter your password to view the gallery</p>
+    <form class="gate-form" id="gate-form">
+      <div class="gate-input-wrap">
+        <svg class="gate-lock-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        <input class="gate-input" type="password" id="gate-password" placeholder="Enter password" autocomplete="current-password" required autofocus />
+        <button type="button" class="gate-eye-btn" id="gate-eye" aria-label="Toggle password visibility">
+          <svg id="eye-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+          <svg id="eye-hide" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </button>
+      </div>
+      <p class="gate-error" id="gate-error">Incorrect password. Please try again.</p>
+      <button type="submit" class="gate-submit" id="gate-submit">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Unlock Gallery
+      </button>
+    </form>
+    <p class="gate-hint">🔒 Password is remembered after first login</p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="brand">
+      <div class="brand-icon">🎨</div>
+      <span class="brand-name">Cloud<span>Vault</span> Gallery</span>
+    </div>
+    <div class="nav-right">
+      <div class="stats-pill" id="stats-pill">Loading…</div>
+      <button class="logout-btn" id="logout-btn" aria-label="Logout">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Logout
+      </button>
+    </div>
+  </nav>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="filters" id="filters" role="tablist">
+      <button class="filter-btn active" data-filter="all" role="tab" aria-selected="true" tabindex="0">All</button>
+      <button class="filter-btn" data-filter="image" role="tab" aria-selected="false" tabindex="-1">Images</button>
+      <button class="filter-btn" data-filter="video" role="tab" aria-selected="false" tabindex="-1">Videos</button>
+      <button class="filter-btn" data-filter="audio" role="tab" aria-selected="false" tabindex="-1">Audio</button>
+      <button class="filter-btn" data-filter="raw" role="tab" aria-selected="false" tabindex="-1">Documents</button>
+    </div>
+    <div class="search-wrap">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input class="search-input" type="search" id="search-input" placeholder="Search files…" />
+    </div>
+  </div>
+
+  <!-- TV remote hint -->
+  <div class="tv-hint" id="tv-hint">
+    📺 Use D-pad arrows to navigate · Enter/OK to open · Back to close
+  </div>
+
+  <!-- Grid -->
+  <div class="grid-container">
+    <p class="grid-label" id="grid-label"></p>
+    <div id="loading-state" class="loading-state">
+      <!-- skeleton shimmer cards injected by JS -->
+    </div>
+    <div class="grid" id="grid" style="display:none"></div>
+    <div class="empty-state" id="empty-state" style="display:none">
+      <div class="empty-icon">🗂️</div>
+      <p class="empty-title">No media found</p>
+      <p class="empty-sub">Try changing the filter or search term.</p>
+    </div>
+    <div class="error-state" id="error-state" style="display:none">
+      <div style="font-size:2.5rem">⚠️</div>
+      <p id="error-msg"></p>
+      <button onclick="fetchResources()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px 20px;border-radius:10px;cursor:pointer;margin-top:8px;">Retry</button>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Media viewer">
+  <button class="lb-close" id="lb-close" aria-label="Close">✕</button>
+  <button class="lb-nav" id="lb-prev" aria-label="Previous">‹</button>
+  <button class="lb-nav" id="lb-next" aria-label="Next">›</button>
+
+  <div class="lb-content" id="lb-content">
+    <img id="lb-img" src="" alt="" style="display:none" />
+    <video id="lb-video" controls style="display:none" playsinline></video>
+    <div id="lb-audio-player" style="display:none">
+      <div class="lb-audio-icon">🎵</div>
+      <p class="lb-audio-name" id="lb-audio-name"></p>
+      <audio id="lb-audio" controls></audio>
+    </div>
+    <div id="lb-doc" style="display:none">
+      <div class="lb-doc-icon">📄</div>
+      <p class="lb-doc-name" id="lb-doc-name"></p>
+      <a id="lb-open-link" href="#" target="_blank" rel="noopener">
+        <button class="lb-open-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          Open File
+        </button>
+      </a>
+    </div>
+  </div>
+
+  <div class="lb-info">
+    <div class="lb-name" id="lb-name"></div>
+    <div class="lb-counter" id="lb-counter"></div>
+  </div>
+</div>
+
+<!-- Copy URL toast -->
+<div id="copy-toast">✓ URL copied to clipboard!</div>
+
+<script>
+// ──────────────────────────────────────────────────────────
+// CONSTANTS & STATE
+// ──────────────────────────────────────────────────────────
+const STORAGE_KEY = 'cloudvault_gallery_auth';
+const AUDIO_FORMATS = new Set(['mp3','wav','ogg','aac','m4a','flac','opus','weba']);
+
+let allResources = [];
+let filteredResources = [];
+let currentFilter = 'all';
+let currentSearch = '';
+let lbIndex = 0;
+
+const BASE_URL = () => `https://api.cloudinary.com/v1_1/${CONFIG.cloudName}`;
+const authHeader = () => 'Basic ' + btoa(`${CONFIG.apiKey}:${CONFIG.apiSecret}`);
+
+// ──────────────────────────────────────────────────────────
+// AUTH
+// ──────────────────────────────────────────────────────────
+function checkAuth() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw)?.authenticated === true : false;
+  } catch { return false; }
+}
+
+function saveAuth() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ authenticated: true, timestamp: Date.now() }));
+}
+
+function doLogout() {
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+// Init
+(function init() {
+  if (checkAuth()) {
+    showApp();
+  } else {
+    document.getElementById('gate').style.display = 'flex';
+  }
+})();
+
+// Gate form
+document.getElementById('gate-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const val = document.getElementById('gate-password').value;
+  if (val === CONFIG.adminPassword) {
+    saveAuth();
+    showApp();
+  } else {
+    const err = document.getElementById('gate-error');
+    err.classList.add('show');
+    document.getElementById('gate-password').value = '';
+    document.getElementById('gate-password').focus();
+    setTimeout(() => err.classList.remove('show'), 3000);
+  }
+});
+
+// Eye toggle
+document.getElementById('gate-eye').addEventListener('click', function() {
+  const inp = document.getElementById('gate-password');
+  const isHidden = inp.type === 'password';
+  inp.type = isHidden ? 'text' : 'password';
+  document.getElementById('eye-show').style.display = isHidden ? 'none' : 'block';
+  document.getElementById('eye-hide').style.display = isHidden ? 'block' : 'none';
+});
+
+document.getElementById('logout-btn').addEventListener('click', doLogout);
+
+function showApp() {
+  document.getElementById('gate').style.display = 'none';
+  const app = document.getElementById('app');
+  app.classList.add('visible');
+  injectSkeletons();
+  fetchResources();
+}
+
+// ──────────────────────────────────────────────────────────
+// SKELETON
+// ──────────────────────────────────────────────────────────
+function injectSkeletons() {
+  const el = document.getElementById('loading-state');
+  el.innerHTML = Array.from({ length: 12 }).map(() => `<div class="skeleton"></div>`).join('');
+}
+
+// ──────────────────────────────────────────────────────────
+// FETCH RESOURCES
+// ──────────────────────────────────────────────────────────
+async function fetchResources() {
+  document.getElementById('loading-state').style.display = 'grid';
+  document.getElementById('grid').style.display = 'none';
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('error-state').style.display = 'none';
+
+  try {
+    const res = await fetch(`${BASE_URL()}/resources/search`, {
+      method: 'POST',
+      headers: {
+        Authorization: authHeader(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        expression: '',
+        sort_by: [{ created_at: 'desc' }],
+        max_results: 500,
+        with_field: ['tags', 'context'],
+      }),
+    });
+
+    if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
+
+    const data = await res.json();
+    allResources = data.resources || [];
+    document.getElementById('loading-state').style.display = 'none';
+    updateDisplay();
+  } catch (err) {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('error-state').style.display = 'flex';
+    document.getElementById('error-msg').textContent = err.message || 'Failed to load media.';
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// FILTER & RENDER
+// ──────────────────────────────────────────────────────────
+function getTypeLabel(r) {
+  if (r.resource_type === 'video' && AUDIO_FORMATS.has(r.format)) return 'audio';
+  return r.resource_type;
+}
+
+function updateDisplay() {
+  filteredResources = allResources.filter(r => {
+    const typeLabel = getTypeLabel(r);
+    const matchFilter = currentFilter === 'all' ? true : typeLabel === currentFilter;
+    const matchSearch = !currentSearch
+      ? true
+      : r.public_id.toLowerCase().includes(currentSearch.toLowerCase())
+        || (r.tags || []).some(t => t.toLowerCase().includes(currentSearch.toLowerCase()));
+    return matchFilter && matchSearch;
+  });
+
+  const total = allResources.length;
+  const shown = filteredResources.length;
+  document.getElementById('stats-pill').innerHTML = `<b>${total}</b> files`;
+  document.getElementById('grid-label').textContent = `Showing ${shown} of ${total} files`;
+
+  const grid = document.getElementById('grid');
+
+  if (filteredResources.length === 0) {
+    grid.style.display = 'none';
+    document.getElementById('empty-state').style.display = 'flex';
+    return;
+  }
+
+  document.getElementById('empty-state').style.display = 'none';
+  grid.style.display = 'grid';
+  grid.innerHTML = filteredResources.map((r, i) => renderCard(r, i)).join('');
+
+  // Wire up card click events
+  grid.querySelectorAll('.card').forEach((card, i) => {
+    card.addEventListener('click', () => openLightbox(i));
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLightbox(i); }
+    });
+  });
+}
+
+function renderCard(r, i) {
+  const typeLabel = getTypeLabel(r);
+  const name = r.public_id.split('/').pop();
+  const date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  const size = r.bytes ? formatBytes(r.bytes) : '';
+
+  let thumbHtml = '';
+  if (r.resource_type === 'image') {
+    const thumbUrl = r.secure_url.replace('/image/upload/', '/image/upload/w_480,h_360,c_fill,q_auto,f_auto/');
+    thumbHtml = `<img class="card-img" src="${thumbUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                 <div class="card-placeholder ph-image" style="display:none">🖼️<span class="card-format">.${r.format?.toUpperCase()}</span></div>`;
+  } else if (typeLabel === 'audio') {
+    thumbHtml = `<div class="card-placeholder ph-audio">🎵<span class="card-format">.${r.format?.toUpperCase()}</span></div>`;
+  } else if (r.resource_type === 'video') {
+    const posterUrl = `https://res.cloudinary.com/${CONFIG.cloudName}/video/upload/w_480,h_360,c_fill,q_auto,so_0/${r.public_id}.jpg`;
+    thumbHtml = `<img class="card-img" src="${posterUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                 <div class="card-placeholder ph-video" style="display:none">🎬<span class="card-format">.${r.format?.toUpperCase()}</span></div>
+                 <div class="play-overlay">
+                   <div class="play-btn">
+                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                       <polygon points="5 3 19 12 5 21 5 3"/>
+                     </svg>
+                   </div>
+                 </div>`;
+  } else {
+    const ext = (r.format || r.public_id.split('.').pop() || '').toUpperCase();
+    const icon = ext === 'PDF' ? '📄' : ['XLS','XLSX'].includes(ext) ? '📊' : ['DOC','DOCX'].includes(ext) ? '📝' : ['ZIP','RAR'].includes(ext) ? '🗜️' : '📁';
+    thumbHtml = `<div class="card-placeholder ph-raw">${icon}<span class="card-format">.${ext}</span></div>`;
+  }
+
+  const tagsHtml = (r.tags || []).slice(0, 3).map(t => `<span class="card-tag">#${escHtml(t)}</span>`).join('');
+
+  return `
+    <div class="card" tabindex="0" data-index="${i}" role="button" aria-label="Open ${escHtml(name)}">
+      <div class="card-thumb">
+        ${thumbHtml}
+        <div class="card-type-badge">
+          <span class="badge-${typeLabel}">${typeLabel}</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-name" title="${escHtml(r.public_id)}">${escHtml(name)}</div>
+        <div class="card-meta">
+          ${date ? `<span>${date}</span>` : ''}
+          ${size ? `<span>${size}</span>` : ''}
+        </div>
+        ${tagsHtml ? `<div class="card-tags">${tagsHtml}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+// ──────────────────────────────────────────────────────────
+// LIGHTBOX
+// ──────────────────────────────────────────────────────────
+function openLightbox(index) {
+  lbIndex = index;
+  renderLightbox();
+  document.getElementById('lightbox').classList.add('open');
+  document.getElementById('lb-close').focus();
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+  // Stop any playing media
+  const video = document.getElementById('lb-video');
+  video.pause(); video.src = '';
+  const audio = document.getElementById('lb-audio');
+  audio.pause(); audio.src = '';
+}
+
+function renderLightbox() {
+  const r = filteredResources[lbIndex];
+  if (!r) return;
+  const typeLabel = getTypeLabel(r);
+  const name = r.public_id.split('/').pop();
+
+  document.getElementById('lb-name').textContent = name;
+  document.getElementById('lb-counter').textContent = `${lbIndex + 1} / ${filteredResources.length}`;
+
+  // Hide all content
+  document.getElementById('lb-img').style.display = 'none';
+  document.getElementById('lb-video').style.display = 'none';
+  document.getElementById('lb-audio-player').style.display = 'none';
+  document.getElementById('lb-doc').style.display = 'none';
+
+  // Stop old media
+  const video = document.getElementById('lb-video');
+  video.pause(); video.src = '';
+  const audio = document.getElementById('lb-audio');
+  audio.pause(); audio.src = '';
+
+  if (r.resource_type === 'image') {
+    const img = document.getElementById('lb-img');
+    img.src = r.secure_url;
+    img.alt = name;
+    img.style.display = 'block';
+  } else if (typeLabel === 'audio') {
+    document.getElementById('lb-audio-name').textContent = name;
+    document.getElementById('lb-audio').src = r.secure_url;
+    document.getElementById('lb-audio-player').style.display = 'flex';
+  } else if (r.resource_type === 'video') {
+    video.src = r.secure_url;
+    video.style.display = 'block';
+  } else {
+    document.getElementById('lb-doc-name').textContent = name;
+    document.getElementById('lb-open-link').href = r.secure_url;
+    document.getElementById('lb-doc').style.display = 'flex';
+  }
+}
+
+function lbNavigate(dir) {
+  lbIndex = (lbIndex + dir + filteredResources.length) % filteredResources.length;
+  renderLightbox();
+}
+
+document.getElementById('lb-close').addEventListener('click', closeLightbox);
+document.getElementById('lb-prev').addEventListener('click', () => lbNavigate(-1));
+document.getElementById('lb-next').addEventListener('click', () => lbNavigate(1));
+
+document.getElementById('lightbox').addEventListener('click', function(e) {
+  if (e.target === this) closeLightbox();
+});
+
+// ──────────────────────────────────────────────────────────
+// KEYBOARD / D-PAD NAVIGATION
+// ──────────────────────────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+  const lb = document.getElementById('lightbox');
+
+  if (lb.classList.contains('open')) {
+    // Lightbox navigation
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); lbNavigate(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); lbNavigate(1); }
+    if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); closeLightbox(); }
+    return;
+  }
+
+  // Grid navigation with arrow keys (TV D-pad)
+  const cards = Array.from(document.querySelectorAll('.card'));
+  if (!cards.length) return;
+
+  const focused = document.activeElement;
+  const currentIdx = cards.indexOf(focused);
+
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    const next = currentIdx === -1 ? 0 : Math.min(currentIdx + (e.key === 'ArrowDown' ? getGridCols() : 1), cards.length - 1);
+    cards[next]?.focus();
+  }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (currentIdx > 0) {
+      const prev = Math.max(currentIdx - (e.key === 'ArrowUp' ? getGridCols() : 1), 0);
+      cards[prev]?.focus();
+    }
+  }
+  if (e.key === 'Enter' && currentIdx !== -1) {
+    e.preventDefault();
+    openLightbox(currentIdx);
+  }
+});
+
+function getGridCols() {
+  const grid = document.getElementById('grid');
+  const style = window.getComputedStyle(grid);
+  return style.gridTemplateColumns.split(' ').length;
+}
+
+// ──────────────────────────────────────────────────────────
+// FILTER BUTTONS
+// ──────────────────────────────────────────────────────────
+document.getElementById('filters').addEventListener('click', function(e) {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+  currentFilter = btn.dataset.filter;
+  this.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b === btn);
+    b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+    b.tabIndex = b === btn ? 0 : -1;
+  });
+  updateDisplay();
+});
+
+// Search
+document.getElementById('search-input').addEventListener('input', function() {
+  currentSearch = this.value;
+  updateDisplay();
+});
+
+// ──────────────────────────────────────────────────────────
+// COPY URL (right-click on card → context menu simulation)
+// ──────────────────────────────────────────────────────────
+document.getElementById('grid').addEventListener('contextmenu', function(e) {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  e.preventDefault();
+  const idx = parseInt(card.dataset.index, 10);
+  const r = filteredResources[idx];
+  if (!r) return;
+  navigator.clipboard.writeText(r.secure_url).then(() => showCopyToast());
+});
+
+function showCopyToast() {
+  const toast = document.getElementById('copy-toast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ──────────────────────────────────────────────────────────
+// HELPERS
+// ──────────────────────────────────────────────────────────
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(0) + ' KB';
+  return (b/(1024*1024)).toFixed(1) + ' MB';
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+
+</body>
+</html>

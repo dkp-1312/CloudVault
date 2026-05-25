@@ -1,0 +1,186 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+}
+
+.modal {
+  background: #0f0f1a;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-modal);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 24px 24px 0;
+  gap: 12px;
+}
+.title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+/* Preview */
+.preview {
+  position: relative;
+  margin: 20px 24px 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  max-height: 180px;
+  background: var(--bg-surface);
+}
+.previewImg {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+.previewBadge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: var(--color-success);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 99px;
+}
+
+/* Form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 24px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Replace zone */
+.replaceZone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+.replaceZone:hover {
+  border-color: var(--color-primary);
+  background: var(--grad-subtle);
+}
+.replaceZone:focus { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.replacePrompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.replaceSelected {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--color-success);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Progress */
+.progressWrap {
+  padding: 0 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.progressBar {
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progressFill {
+  height: 100%;
+  background: var(--grad-primary);
+  border-radius: 99px;
+  transition: width 0.2s;
+}
+.progressLabel {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* Footer */
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px 24px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 480px) {
+  .overlay { padding: 16px; }
+  .header, .form, .footer, .progressWrap { padding-left: 16px; padding-right: 16px; }
+  .preview { margin-left: 16px; margin-right: 16px; }
+}

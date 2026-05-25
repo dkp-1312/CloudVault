@@ -1,0 +1,65 @@
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--navbar-height);
+  background: rgba(8, 8, 15, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+}
+
+/* Brand */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logoIcon {
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(236,72,153,0.15));
+  border: 1px solid rgba(99,102,241,0.25);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brandName {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.uploadBtn {
+  border-radius: 10px;
+}
+
+.logoutBtn {
+  border-radius: 10px;
+}
+
+@media (max-width: 480px) {
+  .uploadLabel { display: none; }
+  .logoutLabel { display: none; }
+  .uploadBtn { padding: 8px; }
+  .logoutBtn  { padding: 8px; }
+}
