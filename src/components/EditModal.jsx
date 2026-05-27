@@ -8,9 +8,12 @@ export default function EditModal({ resource, onClose, onSave, onReplaced, showT
   const [tags, setTags] = useState((resource.tags || []).join(', '));
   const [replaceFile, setReplaceFile] = useState(null);
   const [replacePreview, setReplacePreview] = useState(null);
+  const [customThumbFile, setCustomThumbFile] = useState(null);
+  const [customThumbPreview, setCustomThumbPreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [replaceProgress, setReplaceProgress] = useState(0);
   const fileInputRef = useRef(null);
+  const customThumbInputRef = useRef(null);
 
   function handleReplaceSelect(e) {
     const file = e.target.files?.[0];
@@ -22,6 +25,14 @@ export default function EditModal({ resource, onClose, onSave, onReplaced, showT
     } else {
       setReplacePreview(null);
     }
+  }
+
+  function handleCustomThumbSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCustomThumbFile(file);
+    const url = URL.createObjectURL(file);
+    setCustomThumbPreview(url);
   }
 
   async function handleSave() {
@@ -47,11 +58,29 @@ export default function EditModal({ resource, onClose, onSave, onReplaced, showT
         updatedResource = { ...updatedResource, ...renamed, public_id: name };
       }
 
-      // 3. Update tags
+      // 3. Custom Thumbnail and Tags
+      let finalTagsStr = tags;
+      if (customThumbFile) {
+        const publicName = updatedResource.public_id.split('/').pop();
+        const folder = updatedResource.public_id.split('/').slice(0, -1).join('/');
+        
+        await uploadFile(customThumbFile, {
+          fileName: `${publicName}_custom_thumb.jpg`,
+          folder,
+          useUniqueFileName: false
+        });
+        
+        const tagsList = finalTagsStr.split(',').map((t) => t.trim()).filter(Boolean);
+        if (!tagsList.includes('has_custom_thumb')) {
+          tagsList.push('has_custom_thumb');
+          finalTagsStr = tagsList.join(', ');
+        }
+      }
+
       const currentTags = (resource.tags || []).join(', ');
-      if (tags !== currentTags) {
-        await updateTags(updatedResource.public_id, tags, resource.resource_type);
-        updatedResource.tags = tags.split(',').map((t) => t.trim()).filter(Boolean);
+      if (finalTagsStr !== currentTags) {
+        await updateTags(updatedResource.public_id, finalTagsStr, resource.resource_type);
+        updatedResource.tags = finalTagsStr.split(',').map((t) => t.trim()).filter(Boolean);
       }
 
       onSave(updatedResource);
@@ -64,7 +93,8 @@ export default function EditModal({ resource, onClose, onSave, onReplaced, showT
 
   const hasChanges = name !== resource.public_id
     || tags !== (resource.tags || []).join(', ')
-    || replaceFile;
+    || replaceFile
+    || customThumbFile;
 
   return (
     <motion.div
@@ -150,6 +180,56 @@ export default function EditModal({ resource, onClose, onSave, onReplaced, showT
             />
             <span className={styles.hint}>Separate tags with commas</span>
           </div>
+
+          {/* Custom Thumbnail (Audio/Video) */}
+          {resource.resource_type !== 'image' && (
+            <div className={styles.field}>
+              <label className={styles.label}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                Custom Thumbnail Image
+              </label>
+              <div
+                className={styles.replaceZone}
+                onClick={() => customThumbInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && customThumbInputRef.current?.click()}
+              >
+                <input
+                  ref={customThumbInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCustomThumbSelect}
+                  style={{ display: 'none' }}
+                />
+                {customThumbPreview ? (
+                  <img src={customThumbPreview} alt="Thumbnail preview" style={{maxHeight: 100, objectFit: 'contain', borderRadius: 4}} />
+                ) : (
+                  <div className={styles.replacePrompt}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                      <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    <span>Click to select custom thumbnail</span>
+                  </div>
+                )}
+              </div>
+              {customThumbFile && (
+                <button
+                  className={`btn btn-ghost btn-sm`}
+                  onClick={(e) => { e.stopPropagation(); setCustomThumbFile(null); setCustomThumbPreview(null); }}
+                  style={{ marginTop: 8 }}
+                >
+                  Remove selection
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Replace media */}
           <div className={styles.field}>

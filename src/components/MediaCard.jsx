@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { getThumbnailUrl, getVideoThumbnailUrl } from '../lib/imagekit';
+import { getThumbnailUrl, getVideoThumbnailUrl, getCustomThumbnailUrl } from '../lib/imagekit';
 import styles from './MediaCard.module.css';
 
 function getFileTypeLabel(resource) {
@@ -45,11 +45,15 @@ export default function MediaCard({ resource, index, onEdit, onDelete, showToast
   const [lightbox, setLightbox] = useState(false);
 
   const typeLabel = getFileTypeLabel(resource);
-  let thumbnailUrl = resource.resource_type === 'image' && !imgError
-    ? getThumbnailUrl(resource, 480, 360)
-    : resource.resource_type === 'video' && !imgError
-      ? getVideoThumbnailUrl(resource)
-      : null;
+  let thumbnailUrl = getCustomThumbnailUrl(resource);
+  
+  if (!thumbnailUrl && !imgError) {
+    thumbnailUrl = resource.resource_type === 'image'
+      ? getThumbnailUrl(resource, 480, 360)
+      : resource.resource_type === 'video'
+        ? getVideoThumbnailUrl(resource)
+        : null;
+  }
 
   if (!thumbnailUrl || imgError) {
     if (typeLabel === 'audio') {

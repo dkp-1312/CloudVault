@@ -45,11 +45,28 @@ export function getResourceLabel(resourceType) {
  *
  * Returns a normalised resource object compatible with the rest of the app.
  */
-export function uploadFile(file, onProgress = () => {}) {
+export function uploadFile(file, optionsOrOnProgress, onProgressCb) {
   return new Promise((resolve, reject) => {
+    let options = {};
+    let onProgress = () => {};
+    
+    if (typeof optionsOrOnProgress === 'function') {
+      onProgress = optionsOrOnProgress;
+    } else if (typeof optionsOrOnProgress === 'object') {
+      options = optionsOrOnProgress;
+      if (typeof onProgressCb === 'function') onProgress = onProgressCb;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('fileName', file.name);
+    formData.append('fileName', options.fileName || file.name);
+    
+    if (options.useUniqueFileName !== undefined) {
+      formData.append('useUniqueFileName', options.useUniqueFileName);
+    }
+    if (options.folder) {
+      formData.append('folder', options.folder);
+    }
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', 'https://upload.imagekit.io/api/v1/files/upload');
@@ -230,31 +247,18 @@ export async function updateTags(publicId, tagString, _resourceType = 'image') {
 
   const fileId = await resolveFileId(publicId);
 
-  // Remove existing tags first via bulk API
-  await fetch(`${API_BASE}/files/removeTags`, {
-    method: 'POST',
+  const res = await fetch(`${API_BASE}/files/${fileId}`, {
+    method: 'PATCH',
     headers: {
       Authorization: getAuthHeader(),
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ fileIds: [fileId] }),
+    body: JSON.stringify({ tags }),
   });
 
-  // Add new tags (if any)
-  if (tags.length > 0) {
-    const res = await fetch(`${API_BASE}/files/addTags`, {
-      method: 'POST',
-      headers: {
-        Authorization: getAuthHeader(),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ fileIds: [fileId], tags }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(err?.message || 'Failed to update tags');
-    }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err?.message || 'Failed to update tags');
   }
 
   return { success: true, tags };
@@ -313,6 +317,16 @@ export function getVideoThumbnailUrl(resource) {
     URL_ENDPOINT,
     `${URL_ENDPOINT}/tr:w-400,h-300,c-maintain_ratio`
   ) + '/ik-thumbnail.jpg';
+}
+
+/**
+ * Get custom uploaded thumbnail URL if available via tags.
+ */
+export function getCustomThumbnailUrl(resource) {
+  if (resource.tags && resource.tags.includes('has_custom_thumb')) {
+    return `${resource.secure_url}_custom_thumb.jpg`;
+  }
+  return null;
 }
 
 // ─────────────────────────────────────────────

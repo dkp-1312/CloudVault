@@ -9,14 +9,33 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
   const fileInputRef = useRef(null);
   const dragCounter = useRef(0);
 
+  const MAX_SIZES = {
+    image: 25 * 1024 * 1024,
+    video: 100 * 1024 * 1024,
+    raw: 100 * 1024 * 1024,
+  };
+
   function addFiles(newFiles) {
-    const entries = Array.from(newFiles).map((file) => ({
-      id: Math.random().toString(36).slice(2),
-      file,
-      progress: 0,
-      status: 'pending', // pending | uploading | done | error
-      error: null,
-    }));
+    const entries = Array.from(newFiles).map((file) => {
+      const type = getResourceType(file);
+      const maxSize = MAX_SIZES[type] || MAX_SIZES.raw;
+      
+      let status = 'pending';
+      let error = null;
+
+      if (file.size > maxSize) {
+        status = 'error';
+        error = `Size limit exceeded (Max ${maxSize / (1024 * 1024)}MB)`;
+      }
+
+      return {
+        id: Math.random().toString(36).slice(2),
+        file,
+        progress: 0,
+        status,
+        error,
+      };
+    });
     setFiles((prev) => [...prev, ...entries]);
   }
 
