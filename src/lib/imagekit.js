@@ -206,20 +206,16 @@ export async function deleteResource(publicId, _resourceType = 'image') {
 // RENAME
 // ─────────────────────────────────────────────
 
-/**
- * Rename a file (update its name / path in ImageKit).
- * ImageKit uses PATCH /files/:fileId to update metadata.
- */
 export async function renameResource(fromPublicId, toPublicId, _resourceType = 'image') {
-  const fileId = await resolveFileId(fromPublicId);
+  const file = await resolveFile(fromPublicId);
 
-  const res = await fetch(`${API_BASE}/files/${fileId}`, {
-    method: 'PATCH',
+  const res = await fetch(`${API_BASE}/files/rename`, {
+    method: 'PUT',
     headers: {
       Authorization: getAuthHeader(),
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ name: toPublicId }),
+    body: JSON.stringify({ filePath: file.filePath, newFileName: toPublicId, purgeCache: false }),
   });
 
   if (!res.ok) {
@@ -227,8 +223,7 @@ export async function renameResource(fromPublicId, toPublicId, _resourceType = '
     throw new Error(err?.message || 'Failed to rename resource');
   }
 
-  const updated = await res.json();
-  return normaliseListEntry(updated);
+  return normaliseListEntry({ ...file, name: toPublicId });
 }
 
 // ─────────────────────────────────────────────
@@ -247,7 +242,7 @@ export async function updateTags(publicId, tagString, _resourceType = 'image') {
 
   const fileId = await resolveFileId(publicId);
 
-  const res = await fetch(`${API_BASE}/files/${fileId}`, {
+  const res = await fetch(`${API_BASE}/files/${fileId}/details`, {
     method: 'PATCH',
     headers: {
       Authorization: getAuthHeader(),
@@ -333,10 +328,10 @@ export function getCustomThumbnailUrl(resource) {
 // INTERNAL HELPERS
 // ─────────────────────────────────────────────
 
-/** Resolve an ImageKit fileId from a public_id (name).
- *  ImageKit APIs mostly need fileId. We search by name.
+/** Resolve an ImageKit file object from a public_id (name).
+ *  ImageKit APIs mostly need fileId or filePath. We search by name.
  */
-async function resolveFileId(publicId) {
+async function resolveFile(publicId) {
   const url = new URL(`${API_BASE}/files`);
   url.searchParams.set('searchQuery', `name = "${publicId}"`);
   url.searchParams.set('limit', '1');
@@ -346,7 +341,7 @@ async function resolveFileId(publicId) {
   });
 
   if (!res.ok) {
-    throw new Error('Could not resolve file ID for: ' + publicId);
+    throw new Error('Could not resolve file for: ' + publicId);
   }
 
   const files = await res.json();
@@ -354,5 +349,10 @@ async function resolveFileId(publicId) {
     throw new Error(`File not found in ImageKit: ${publicId}`);
   }
 
-  return files[0].fileId;
+  return files[0];
+}
+
+async function resolveFileId(publicId) {
+  const file = await resolveFile(publicId);
+  return file.fileId;
 }
