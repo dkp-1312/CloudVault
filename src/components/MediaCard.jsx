@@ -45,11 +45,19 @@ export default function MediaCard({ resource, index, onEdit, onDelete, showToast
   const [lightbox, setLightbox] = useState(false);
 
   const typeLabel = getFileTypeLabel(resource);
-  const thumbnailUrl = resource.resource_type === 'image' && !imgError
+  let thumbnailUrl = resource.resource_type === 'image' && !imgError
     ? getThumbnailUrl(resource, 480, 360)
-    : resource.resource_type === 'video'
+    : resource.resource_type === 'video' && !imgError
       ? getVideoThumbnailUrl(resource)
       : null;
+
+  if (!thumbnailUrl || imgError) {
+    if (typeLabel === 'audio') {
+      thumbnailUrl = '/Audio.png';
+    } else if (typeLabel === 'video') {
+      thumbnailUrl = '/Video.png';
+    }
+  }
 
   async function copyUrl() {
     try {
