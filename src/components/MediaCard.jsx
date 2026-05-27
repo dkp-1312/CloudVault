@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { getThumbnailUrl, getVideoThumbnailUrl, getCustomThumbnailUrl } from '../lib/imagekit';
+import { getThumbnailUrl, getVideoThumbnailUrl } from '../lib/imagekit';
 import styles from './MediaCard.module.css';
 
 function getFileTypeLabel(resource) {
@@ -45,7 +45,7 @@ export default function MediaCard({ resource, index, onEdit, onDelete, showToast
   const [lightbox, setLightbox] = useState(false);
 
   const typeLabel = getFileTypeLabel(resource);
-  let thumbnailUrl = getCustomThumbnailUrl(resource);
+  let thumbnailUrl = resource.customThumbUrl || null;
   
   if (!thumbnailUrl && !imgError) {
     thumbnailUrl = resource.resource_type === 'image'
