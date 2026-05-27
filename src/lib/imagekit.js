@@ -228,6 +228,55 @@ export async function createFolder(folderName, parentFolderPath = '/') {
   return { name: folderName, folderPath: `${parentFolderPath}/${folderName}`.replace('//', '/') };
 }
 
+/**
+ * Check if a folder has any files or subfolders.
+ * Returns true if it contains items, false otherwise.
+ */
+export async function checkFolderHasFiles(folderPath) {
+  const url = new URL(`${API_BASE}/files`);
+  url.searchParams.set('path', folderPath);
+  url.searchParams.set('limit', '1');
+
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: getAuthHeader() },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err?.message || 'Failed to check folder contents');
+  }
+
+  const data = await res.json();
+  const items = Array.isArray(data) ? data : (data.files || []);
+  
+  // Filter out the folder itself (ImageKit sometimes returns the folder itself when querying its path)
+  const contents = items.filter(item => item.folderPath !== folderPath);
+  
+  return contents.length > 0;
+}
+
+/**
+ * Delete a folder by its path.
+ * WARNING: This permanently deletes the folder and all its contents.
+ */
+export async function deleteFolder(folderPath) {
+  const res = await fetch(`${API_BASE}/folder`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: getAuthHeader(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ folderPath }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err?.message || 'Failed to delete folder');
+  }
+  
+  return true;
+}
+
 // ─────────────────────────────────────────────
 // DELETE
 // ─────────────────────────────────────────────

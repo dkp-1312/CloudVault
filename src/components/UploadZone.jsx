@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { uploadFile, getResourceType, listFolders, createFolder } from '../lib/imagekit';
+import { uploadFile, getResourceType, listFolders, createFolder, deleteFolder, checkFolderHasFiles } from '../lib/imagekit';
 import styles from './UploadZone.module.css';
 
 export default function UploadZone({ onComplete, onClose, showToast }) {
@@ -14,6 +14,9 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
   const [newFolderMode, setNewFolderMode] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [deletingFolder, setDeletingFolder] = useState(false);
+  const [folderToDelete, setFolderToDelete] = useState(null); // { path, name }
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const fileInputRef = useRef(null);
   const dragCounter = useRef(0);
@@ -160,6 +163,49 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
     }
   }
 
+  // ── Delete folder ─────────────────────────────────────
+
+  async function initiateFolderDelete() {
+    if (!selectedFolder || selectedFolder === '/') return;
+    setDeletingFolder(true);
+    const name = folders.find(f => f.folderPath === selectedFolder)?.name || selectedFolder;
+    try {
+      const hasFiles = await checkFolderHasFiles(selectedFolder);
+      if (hasFiles) {
+        setFolderToDelete({ path: selectedFolder, name });
+        setShowDeleteConfirm(true);
+      } else {
+        // Empty folder, delete immediately
+        await executeFolderDelete(selectedFolder, name);
+      }
+    } catch (err) {
+      showToast(err.message || 'Failed to check folder', 'error');
+    } finally {
+      setDeletingFolder(false);
+    }
+  }
+
+  async function executeFolderDelete(path, name) {
+    setDeletingFolder(true);
+    try {
+      await deleteFolder(path);
+      // Remove from state and local cache
+      setFolders((prev) => {
+        const next = prev.filter(f => f.folderPath !== path);
+        localStorage.setItem('ik_local_folders', JSON.stringify(next.filter(f => f.folderPath !== '/')));
+        return next;
+      });
+      setSelectedFolder('/');
+      setShowDeleteConfirm(false);
+      setFolderToDelete(null);
+      showToast(`Folder "${name}" deleted!`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to delete folder', 'error');
+    } finally {
+      setDeletingFolder(false);
+    }
+  }
+
   // ── Upload all ────────────────────────────────────────
 
   async function uploadAll() {
@@ -274,7 +320,7 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
                 className={styles.folderSelect}
                 value={selectedFolder}
                 onChange={(e) => setSelectedFolder(e.target.value)}
-                disabled={foldersLoading}
+                disabled={foldersLoading || deletingFolder}
                 id="folder-select"
               >
                 <option value="/">📂 Root (/)</option>
@@ -286,6 +332,26 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
               </select>
               {foldersLoading && <div className={styles.miniSpinner} />}
             </div>
+            {selectedFolder !== '/' && (
+              <button
+                className={`btn btn-ghost btn-sm btn-icon ${styles.deleteFolderBtn}`}
+                onClick={initiateFolderDelete}
+                disabled={deletingFolder}
+                title="Delete this folder"
+                id="delete-folder-btn"
+              >
+                {deletingFolder && !showDeleteConfirm ? (
+                  <div className={styles.miniSpinner} />
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger)" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14H6L5 6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                    <path d="M9 6V4h6v2"/>
+                  </svg>
+                )}
+              </button>
+            )}
             <button
               className={`btn btn-ghost btn-sm ${styles.newFolderBtn}`}
               onClick={() => setNewFolderMode(true)}
@@ -416,6 +482,55 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
           {files.filter((f) => f.status === 'pending').length > 1 ? 's' : ''} to {displayFolder}
         </button>
       )}
+
+      {/* ── Delete confirmation modal ── */}
+      <AnimatePresence>
+        {showDeleteConfirm && folderToDelete && (
+          <motion.div
+            className={styles.modalOverlay}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !deletingFolder && setShowDeleteConfirm(false)}
+          >
+            <motion.div
+              className={styles.deleteModal}
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.deleteIcon}>⚠️</div>
+              <h3 className={styles.deleteTitle}>Delete Folder?</h3>
+              <p className={styles.deleteSub}>
+                The folder <strong>{folderToDelete.name}</strong> is not empty. Deleting it will permanently remove all files and subfolders inside it.
+              </p>
+              <div className={styles.deleteActions}>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deletingFolder}
+                  id="delete-folder-cancel-btn"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => executeFolderDelete(folderToDelete.path, folderToDelete.name)}
+                  disabled={deletingFolder}
+                  id="delete-folder-confirm-btn"
+                >
+                  {deletingFolder ? (
+                    <><div style={{ width:14,height:14,border:'2px solid rgba(239,68,68,0.3)',borderTopColor:'var(--color-danger)',borderRadius:'50%',animation:'spin 0.7s linear infinite' }} /> Deleting…</>
+                  ) : (
+                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg> Delete Everything</>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
