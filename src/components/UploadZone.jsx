@@ -1,11 +1,20 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { uploadFile, getResourceType } from '../lib/imagekit';
+import { uploadFile, getResourceType, listFolders, createFolder } from '../lib/imagekit';
 import styles from './UploadZone.module.css';
 
 export default function UploadZone({ onComplete, onClose, showToast }) {
-  const [files, setFiles] = useState([]); // { file, progress, status, error }
+  const [files, setFiles] = useState([]); // { id, file, progress, status, error }
   const [dragging, setDragging] = useState(false);
+
+  // Folder state
+  const [folders, setFolders] = useState([]); // existing folders from ImageKit
+  const [foldersLoading, setFoldersLoading] = useState(true);
+  const [selectedFolder, setSelectedFolder] = useState('/'); // '/' = root
+  const [newFolderMode, setNewFolderMode] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [creatingFolder, setCreatingFolder] = useState(false);
+
   const fileInputRef = useRef(null);
   const dragCounter = useRef(0);
 
@@ -15,72 +24,37 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
     raw: 100 * 1024 * 1024,
   };
 
+  // Load folders on mount
+  useEffect(() => {
+    async function load() {
+      setFoldersLoading(true);
+      try {
+        const data = await listFolders('/');
+        setFolders(data);
+      } catch {
+        // silently fail — root upload still works
+      } finally {
+        setFoldersLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  // ── File helpers ──────────────────────────────────────
+
   function addFiles(newFiles) {
     const entries = Array.from(newFiles).map((file) => {
       const type = getResourceType(file);
       const maxSize = MAX_SIZES[type] || MAX_SIZES.raw;
-      
       let status = 'pending';
       let error = null;
-
       if (file.size > maxSize) {
         status = 'error';
         error = `Size limit exceeded (Max ${maxSize / (1024 * 1024)}MB)`;
       }
-
-      return {
-        id: Math.random().toString(36).slice(2),
-        file,
-        progress: 0,
-        status,
-        error,
-      };
+      return { id: Math.random().toString(36).slice(2), file, progress: 0, status, error };
     });
     setFiles((prev) => [...prev, ...entries]);
-  }
-
-  function handleDragEnter(e) {
-    e.preventDefault();
-    dragCounter.current++;
-    setDragging(true);
-  }
-  function handleDragLeave(e) {
-    e.preventDefault();
-    dragCounter.current--;
-    if (dragCounter.current === 0) setDragging(false);
-  }
-  function handleDragOver(e) { e.preventDefault(); }
-  function handleDrop(e) {
-    e.preventDefault();
-    dragCounter.current = 0;
-    setDragging(false);
-    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
-  }
-
-  async function uploadAll() {
-    const pending = files.filter((f) => f.status === 'pending');
-    if (!pending.length) return;
-
-    const uploads = pending.map(async (entry) => {
-      setFiles((prev) => prev.map((f) => f.id === entry.id ? { ...f, status: 'uploading' } : f));
-      try {
-        await uploadFile(entry.file, (progress) => {
-          setFiles((prev) => prev.map((f) => f.id === entry.id ? { ...f, progress } : f));
-        });
-        setFiles((prev) => prev.map((f) => f.id === entry.id ? { ...f, status: 'done', progress: 100 } : f));
-      } catch (err) {
-        setFiles((prev) => prev.map((f) => f.id === entry.id ? { ...f, status: 'error', error: err.message } : f));
-      }
-    });
-
-    await Promise.all(uploads);
-
-    const allDone = files.every((f) => f.status === 'done') ||
-      pending.every((_, i) => true); // check after state updates
-
-    setTimeout(() => {
-      if (files.some((f) => f.status !== 'error')) onComplete();
-    }, 800);
   }
 
   function removeFile(id) {
@@ -102,21 +76,183 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
+  // ── Drag events ───────────────────────────────────────
+
+  function handleDragEnter(e) {
+    e.preventDefault();
+    dragCounter.current++;
+    setDragging(true);
+  }
+  function handleDragLeave(e) {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setDragging(false);
+  }
+  function handleDragOver(e) { e.preventDefault(); }
+  function handleDrop(e) {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setDragging(false);
+    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  }
+
+  // ── Create folder ─────────────────────────────────────
+
+  async function handleCreateFolder() {
+    const name = newFolderName.trim().replace(/[/\\]/g, '-');
+    if (!name) return;
+    setCreatingFolder(true);
+    try {
+      const created = await createFolder(name, '/');
+      setFolders((prev) => [...prev, created]);
+      setSelectedFolder(created.folderPath);
+      setNewFolderMode(false);
+      setNewFolderName('');
+      showToast(`Folder "${name}" created!`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to create folder', 'error');
+    } finally {
+      setCreatingFolder(false);
+    }
+  }
+
+  // ── Upload all ────────────────────────────────────────
+
+  async function uploadAll() {
+    const folder = selectedFolder === '/' ? '' : selectedFolder;
+    const pending = files.filter((f) => f.status === 'pending');
+    if (!pending.length) return;
+
+    const uploads = pending.map(async (entry) => {
+      setFiles((prev) => prev.map((f) => f.id === entry.id ? { ...f, status: 'uploading' } : f));
+      try {
+        await uploadFile(
+          entry.file,
+          { folder: folder || undefined },
+          (progress) => {
+            setFiles((prev) => prev.map((f) => f.id === entry.id ? { ...f, progress } : f));
+          }
+        );
+        setFiles((prev) => prev.map((f) => f.id === entry.id ? { ...f, status: 'done', progress: 100 } : f));
+      } catch (err) {
+        setFiles((prev) => prev.map((f) => f.id === entry.id ? { ...f, status: 'error', error: err.message } : f));
+      }
+    });
+
+    await Promise.all(uploads);
+    setTimeout(() => {
+      if (files.some((f) => f.status !== 'error')) onComplete();
+    }, 800);
+  }
+
   const hasPending = files.some((f) => f.status === 'pending');
-  const allUploading = files.length > 0 && files.every((f) => f.status === 'uploading' || f.status === 'done');
+  const displayFolder = selectedFolder === '/' ? 'Root (/)' : selectedFolder;
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h2 className={styles.title}>Upload Media</h2>
-        <button className={`btn btn-ghost btn-icon`} onClick={onClose} id="upload-close-btn">
+        <button className="btn btn-ghost btn-icon" onClick={onClose} id="upload-close-btn">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </button>
       </div>
 
-      {/* Drop zone */}
+      {/* ── Folder Picker ── */}
+      <div className={styles.folderSection}>
+        <div className={styles.folderHeader}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span className={styles.folderLabel}>Upload to folder</span>
+        </div>
+
+        {newFolderMode ? (
+          <div className={styles.newFolderRow}>
+            <div className={styles.newFolderInputWrap}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+              <input
+                className={styles.newFolderInput}
+                type="text"
+                placeholder="New folder name…"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') setNewFolderMode(false); }}
+                autoFocus
+                id="new-folder-input"
+              />
+            </div>
+            <button
+              className={`btn btn-primary btn-sm ${styles.createBtn}`}
+              onClick={handleCreateFolder}
+              disabled={creatingFolder || !newFolderName.trim()}
+              id="create-folder-confirm-btn"
+            >
+              {creatingFolder ? (
+                <div className={styles.miniSpinner} />
+              ) : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  Create
+                </>
+              )}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setNewFolderMode(false); setNewFolderName(''); }}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div className={styles.folderPickerRow}>
+            <div className={styles.folderSelectWrap}>
+              <svg className={styles.folderSelectIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+              <select
+                className={styles.folderSelect}
+                value={selectedFolder}
+                onChange={(e) => setSelectedFolder(e.target.value)}
+                disabled={foldersLoading}
+                id="folder-select"
+              >
+                <option value="/">📂 Root (/)</option>
+                {folders.map((f) => (
+                  <option key={f.folderPath} value={f.folderPath}>
+                    📁 {f.name}
+                  </option>
+                ))}
+              </select>
+              {foldersLoading && <div className={styles.miniSpinner} />}
+            </div>
+            <button
+              className={`btn btn-ghost btn-sm ${styles.newFolderBtn}`}
+              onClick={() => setNewFolderMode(true)}
+              title="Create new folder"
+              id="new-folder-btn"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                <line x1="12" y1="11" x2="12" y2="17"/>
+                <line x1="9" y1="14" x2="15" y2="14"/>
+              </svg>
+              New Folder
+            </button>
+          </div>
+        )}
+
+        <div className={styles.folderBadge}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+          Files will be uploaded to: <strong>{displayFolder}</strong>
+        </div>
+      </div>
+
+      {/* ── Drop zone ── */}
       <div
         className={`${styles.dropzone} ${dragging ? styles.dropzoneDragging : ''}`}
         onDragEnter={handleDragEnter}
@@ -153,7 +289,7 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
         </div>
       </div>
 
-      {/* File list */}
+      {/* ── File list ── */}
       <AnimatePresence>
         {files.length > 0 && (
           <motion.div className={styles.fileList} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -193,7 +329,7 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
                     <span className={styles.pct}>{entry.progress}%</span>
                   )}
                   {entry.status === 'pending' && (
-                    <button className={`btn btn-ghost btn-icon btn-sm`} onClick={() => removeFile(entry.id)}>
+                    <button className="btn btn-ghost btn-icon btn-sm" onClick={() => removeFile(entry.id)}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                       </svg>
@@ -206,7 +342,7 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
         )}
       </AnimatePresence>
 
-      {/* Upload button */}
+      {/* ── Upload button ── */}
       {hasPending && (
         <button
           className={`btn btn-primary ${styles.uploadBtn}`}
@@ -218,7 +354,8 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
             <line x1="12" y1="12" x2="12" y2="21"/>
             <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
           </svg>
-          Upload {files.filter((f) => f.status === 'pending').length} File{files.filter((f) => f.status === 'pending').length > 1 ? 's' : ''}
+          Upload {files.filter((f) => f.status === 'pending').length} File
+          {files.filter((f) => f.status === 'pending').length > 1 ? 's' : ''} to {displayFolder}
         </button>
       )}
     </div>

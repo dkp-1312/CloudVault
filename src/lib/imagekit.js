@@ -175,6 +175,61 @@ export async function listResources() {
 }
 
 // ─────────────────────────────────────────────
+// FOLDERS
+// ─────────────────────────────────────────────
+
+/**
+ * List all folders at a given path (default: root "/").
+ * Returns array of { name, folderPath } objects.
+ */
+export async function listFolders(parentPath = '/') {
+  const url = new URL(`${API_BASE}/folders`);
+  url.searchParams.set('parentFolderPath', parentPath);
+  url.searchParams.set('limit', '500');
+
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: getAuthHeader() },
+  });
+
+  if (!res.ok) {
+    // 404 just means no folders yet — return empty
+    if (res.status === 404) return [];
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err?.message || 'Failed to list folders');
+  }
+
+  const data = await res.json();
+  const items = Array.isArray(data) ? data : (data.folders || []);
+  return items.map((f) => ({
+    name: f.name,
+    folderPath: f.folderPath || f.relativePath || `${parentPath}/${f.name}`.replace('//', '/'),
+  }));
+}
+
+/**
+ * Create a folder inside a parent folder.
+ * folderName: e.g. "my-folder"
+ * parentFolderPath: e.g. "/" or "/videos"
+ */
+export async function createFolder(folderName, parentFolderPath = '/') {
+  const res = await fetch(`${API_BASE}/folder`, {
+    method: 'POST',
+    headers: {
+      Authorization: getAuthHeader(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ folderName, parentFolderPath }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err?.message || 'Failed to create folder');
+  }
+
+  return { name: folderName, folderPath: `${parentFolderPath}/${folderName}`.replace('//', '/') };
+}
+
+// ─────────────────────────────────────────────
 // DELETE
 // ─────────────────────────────────────────────
 
