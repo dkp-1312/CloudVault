@@ -30,9 +30,21 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
       setFoldersLoading(true);
       try {
         const data = await listFolders('/');
-        setFolders(data);
-      } catch {
-        // silently fail — root upload still works
+        console.log('listFolders returned:', data);
+        
+        // Merge with locally cached folders to handle ImageKit API delay
+        const localFolders = JSON.parse(localStorage.getItem('ik_local_folders') || '[]');
+        const merged = [...data];
+        for (const lf of localFolders) {
+          if (!merged.find(f => f.folderPath === lf.folderPath)) {
+            merged.push(lf);
+          }
+        }
+        
+        setFolders(merged);
+      } catch (err) {
+        console.error('listFolders error:', err);
+        showToast('Failed to load folders', 'error');
       } finally {
         setFoldersLoading(false);
       }
@@ -115,13 +127,34 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
     setCreatingFolder(true);
     try {
       const created = await createFolder(name, '/');
-      setFolders((prev) => [...prev, created]);
+      
+      // Update state and cache locally
+      setFolders((prev) => {
+        const next = [...prev, created];
+        localStorage.setItem('ik_local_folders', JSON.stringify(next.filter(f => f.folderPath !== '/')));
+        return next;
+      });
+      
       setSelectedFolder(created.folderPath);
       setNewFolderMode(false);
       setNewFolderName('');
       showToast(`Folder "${name}" created!`, 'success');
     } catch (err) {
-      showToast(err.message || 'Failed to create folder', 'error');
+      // If ImageKit says it already exists, just use it
+      if (err.message && err.message.toLowerCase().includes('already exists')) {
+        const fakeFolder = { name, folderPath: '/' + name };
+        setFolders((prev) => {
+          const next = [...prev, fakeFolder];
+          localStorage.setItem('ik_local_folders', JSON.stringify(next.filter(f => f.folderPath !== '/')));
+          return next;
+        });
+        setSelectedFolder(fakeFolder.folderPath);
+        setNewFolderMode(false);
+        setNewFolderName('');
+        showToast(`Selected existing folder "${name}"`, 'success');
+      } else {
+        showToast(err.message || 'Failed to create folder', 'error');
+      }
     } finally {
       setCreatingFolder(false);
     }
