@@ -101,6 +101,17 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
   async function handleCreateFolder() {
     const name = newFolderName.trim().replace(/[/\\]/g, '-');
     if (!name) return;
+
+    // If folder already exists, just select it instead of calling create API
+    const existing = folders.find((f) => f.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      setSelectedFolder(existing.folderPath);
+      setNewFolderMode(false);
+      setNewFolderName('');
+      showToast(`Selected existing folder "${existing.name}"`, 'success');
+      return;
+    }
+
     setCreatingFolder(true);
     try {
       const created = await createFolder(name, '/');
@@ -185,23 +196,37 @@ export default function UploadZone({ onComplete, onClose, showToast }) {
                 id="new-folder-input"
               />
             </div>
-            <button
-              className={`btn btn-primary btn-sm ${styles.createBtn}`}
-              onClick={handleCreateFolder}
-              disabled={creatingFolder || !newFolderName.trim()}
-              id="create-folder-confirm-btn"
-            >
-              {creatingFolder ? (
-                <div className={styles.miniSpinner} />
-              ) : (
-                <>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  Create
-                </>
-              )}
-            </button>
+            {(() => {
+              const name = newFolderName.trim().replace(/[/\\]/g, '-');
+              const exists = folders.some((f) => f.name.toLowerCase() === name.toLowerCase());
+              
+              return (
+                <button
+                  className={`btn btn-primary btn-sm ${styles.createBtn}`}
+                  onClick={handleCreateFolder}
+                  disabled={creatingFolder || !name}
+                  id="create-folder-confirm-btn"
+                >
+                  {creatingFolder ? (
+                    <div className={styles.miniSpinner} />
+                  ) : exists ? (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      Add Media
+                    </>
+                  ) : (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                      </svg>
+                      Create
+                    </>
+                  )}
+                </button>
+              );
+            })()}
             <button className="btn btn-ghost btn-sm" onClick={() => { setNewFolderMode(false); setNewFolderName(''); }}>
               Cancel
             </button>
